@@ -1,1 +1,3 @@
 flask-virtualenv/
+.vscode/
+__pycache__/
