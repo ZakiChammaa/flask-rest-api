@@ -1,3 +1,5 @@
+import re
+import datetime
 from math import sin, cos, sqrt, atan2, radians
 
 def calc_dist(long_orig, lat_orig, long_dest, lat_dest):
@@ -21,3 +23,8 @@ def calc_dist(long_orig, lat_orig, long_dest, lat_dest):
         pass
 
     return R * c
+
+def get_weekday_from_datetime(dt_str):
+    p = re.compile('[-T:]')
+    origin_date = datetime.datetime(*map(int, p.split(dt_str)))
+    return origin_date.weekday()

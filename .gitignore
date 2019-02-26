@@ -1,3 +1,4 @@
 flask-virtualenv/
 .vscode/
 __pycache__/
+tests/__pycache__/

@@ -1,8 +1,6 @@
-import re
 import csv
-import datetime
 import subprocess
-from common.utils import calc_dist
+from common.utils import calc_dist, get_weekday_from_datetime
 from common.constant import weekdays
 from flask import Flask, jsonify
 
@@ -64,17 +62,14 @@ def weekdays_stats():
         origin_date_index = headers.index('DATE_ORIGINE')
 
         for row in reader:
-            origin_date = None
+            weekday = None
             try:
-                p = re.compile('[-T:]')
-                origin_date = datetime.datetime(*map(int, p.split(row[origin_date_index])))
+                weekday = get_weekday_from_datetime(row[origin_date_index])
             except ValueError:
                 print('Error parsing date from file.')
                 print('Skipping...')
                 continue
             
-            weekday = origin_date.weekday()
-
             if weekday in weekdays_stats_dict.keys():
                 weekdays_stats_dict[weekday]['number_towing'] += 1
             else:
