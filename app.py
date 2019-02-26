@@ -1,6 +1,9 @@
+import re
 import csv
+import datetime
 import subprocess
-from utils import calc_dist
+from common.utils import calc_dist
+from common.constant import weekdays
 from flask import Flask, jsonify
 
 app = Flask(__name__)
@@ -50,6 +53,42 @@ def frequent_boroughs():
         })
     
     return jsonify(frequent_boroughs)
+
+@app.route('/weekdays-stats')
+def weekdays_stats():
+    weekdays_stats_dict = {}
+    with open(filename, 'r') as f:
+        reader = csv.reader(f)
+        headers = next(reader, None)
+
+        origin_date_index = headers.index('DATE_ORIGINE')
+
+        for row in reader:
+            origin_date = None
+            try:
+                p = re.compile('[-T:]')
+                origin_date = datetime.datetime(*map(int, p.split(row[origin_date_index])))
+            except ValueError:
+                print('Error parsing date from file.')
+                print('Skipping...')
+                continue
+            
+            weekday = origin_date.weekday()
+
+            if weekday in weekdays_stats_dict.keys():
+                weekdays_stats_dict[weekday]['number_towing'] += 1
+            else:
+                weekdays_stats_dict[weekday] = {'number_towing': 1}
+
+        weekdays_stats = []
+        for weekday, stats in weekdays_stats_dict.items():
+            weekdays_stats.append({
+                'weekday': weekdays[weekday],
+                'number_towing': stats['number_towing']
+            })
+        
+        return jsonify(weekdays_stats)
+
 
 if __name__ == '__main__':
 	app.run(debug=True, host='0.0.0.0', port=5001)
