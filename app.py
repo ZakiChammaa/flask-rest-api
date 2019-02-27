@@ -13,8 +13,9 @@ def hello_world():
 	(out, err) = proc.communicate()
 	return out
 
-@app.route('/frequent-boroughs')
-def frequent_boroughs():
+@app.route('/frequent-boroughs', defaults={'borough_id': None})
+@app.route('/frequent-boroughs/<borough_id>')
+def frequent_boroughs(borough_id):
     frequent_boroughs_dict = {}
     with open(filename, 'r') as f:
         reader = csv.reader(f)
@@ -42,13 +43,22 @@ def frequent_boroughs():
                 frequent_boroughs_dict[borough] = {'number_towing': 1, 'sum_distance': distance}
 
     frequent_boroughs = []
-    for borough, stats in frequent_boroughs_dict.items():
+    if borough_id != None:
+        average_distance = frequent_boroughs_dict[borough_id]['sum_distance']/frequent_boroughs_dict[borough_id]['number_towing']
         frequent_boroughs.append({
-            'borough': borough,
-            'number_towing': stats['number_towing'],
-            'average_distance': stats['sum_distance']/stats['number_towing'],
+            'borough': borough_id,
+            'number_towing': frequent_boroughs_dict[borough_id]['number_towing'],
+            'average_distance': average_distance,
             'distance_unit': 'km'
         })
+    else:
+        for borough, stats in frequent_boroughs_dict.items():
+            frequent_boroughs.append({
+                'borough': borough,
+                'number_towing': stats['number_towing'],
+                'average_distance': stats['sum_distance']/stats['number_towing'],
+                'distance_unit': 'km'
+            })
     
     return jsonify(frequent_boroughs)
 
@@ -69,7 +79,7 @@ def weekdays_stats():
                 print('Error parsing date from file.')
                 print('Skipping...')
                 continue
-            
+
             if weekday in weekdays_stats_dict.keys():
                 weekdays_stats_dict[weekday]['number_towing'] += 1
             else:
