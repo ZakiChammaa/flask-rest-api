@@ -1,4 +1,5 @@
 import csv
+import json
 import subprocess
 from common.utils import calc_dist, get_weekday_from_datetime
 from common.constant import weekdays
@@ -11,7 +12,25 @@ filename = 'data/remorquages.csv'
 def hello_world():
 	proc = subprocess.Popen(["python -V"], stdout=subprocess.PIPE, shell=True)
 	(out, err) = proc.communicate()
-	return out
+	return "Python Flask Towing Endpoints.<br> Python version %s" % out.strip()
+
+@app.route('/data', defaults={'date_id': None})
+@app.route('/data/<date_id>')
+def data(date_id):
+    data = []
+    with open(filename, 'r') as f:
+        reader = csv.reader(f)
+        headers = next(reader, None)
+        origin_date_index = headers.index('DATE_ORIGINE')
+
+        if date_id:
+            for row in reader:
+                origin_date = row[origin_date_index].split('T')[0].strip()
+                if origin_date == date_id.strip():
+                    data.append(dict(zip(headers, row)))
+        else:
+            data = [dict(zip(headers, row)) for row in reader]
+    return jsonify(data)
 
 @app.route('/frequent-boroughs', defaults={'borough_id': None})
 @app.route('/frequent-boroughs/<borough_id>')
