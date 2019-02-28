@@ -1,9 +1,8 @@
 import csv
-import json
 import subprocess
-from common.utils import calc_dist, get_weekday_from_datetime
-from common.constant import weekdays
 from flask import Flask, jsonify
+from common.constant import weekdays
+from common.utils import calc_dist, get_weekday_from_datetime
 
 app = Flask(__name__)
 filename = 'data/remorquages.csv'
@@ -17,6 +16,11 @@ def hello_world():
 @app.route('/data', defaults={'date_id': None})
 @app.route('/data/<date_id>')
 def data(date_id):
+    '''
+    Endpoint that returns the data in json format.
+    Can filter the data using the the date.
+    '''
+
     data = []
     with open(filename, 'r') as f:
         reader = csv.reader(f)
@@ -32,10 +36,16 @@ def data(date_id):
             data = [dict(zip(headers, row)) for row in reader]
     return jsonify(data)
 
-@app.route('/frequent-boroughs', defaults={'borough_id': None})
-@app.route('/frequent-boroughs/<borough_id>')
-def frequent_boroughs(borough_id):
-    frequent_boroughs_dict = {}
+@app.route('/boroughs-stats', defaults={'borough_id': None})
+@app.route('/boroughs-stats/<borough_id>')
+def boroughs_stats(borough_id):
+    '''
+    Endpoint that returns the number of towings per borough 
+    and the average towed distance in each borough.
+    Can filter the data using the borough name.
+    '''
+
+    boroughs_stats_dict = {}
     with open(filename, 'r') as f:
         reader = csv.reader(f)
         headers = next(reader, None)
@@ -47,6 +57,9 @@ def frequent_boroughs(borough_id):
         lat_dest_index = headers.index('LATITUDE_DESTINATION')
 
         for row in reader:
+            distance = 0.0
+            distance_error = False
+
             borough = row[borough_index]
             long_orig, lat_orig = row[long_orig_index], row[lat_orig_index]
             long_dest, lat_dest = row[long_dest_index], row[lat_dest_index]
@@ -54,35 +67,53 @@ def frequent_boroughs(borough_id):
             if not borough:
                 continue
             
-            distance = calc_dist(long_orig, lat_orig, long_dest, lat_dest)
-            if borough in frequent_boroughs_dict.keys():
-                frequent_boroughs_dict[borough]['number_towing'] += 1
-                frequent_boroughs_dict[borough]['sum_distance'] += distance
+            try:
+                distance = calc_dist(long_orig, lat_orig, long_dest, lat_dest)
+            except ValueError:
+                distance_error = True
+                pass
+            
+            if borough in boroughs_stats_dict.keys():
+                boroughs_stats_dict[borough]['number_towing'] += 1
+                boroughs_stats_dict[borough]['sum_distance'] += distance
+                if distance_error:
+                    boroughs_stats_dict[borough]['distance_errors'] += 1
             else:
-                frequent_boroughs_dict[borough] = {'number_towing': 1, 'sum_distance': distance}
+                distance_errors_count = 1 if distance_error else 0
+                boroughs_stats_dict[borough] = {
+                    'number_towing': 1, 
+                    'sum_distance': distance,
+                    'distance_errors': distance_errors_count
+                }
 
-    frequent_boroughs = []
+    boroughs_stats = []
     if borough_id != None:
-        average_distance = frequent_boroughs_dict[borough_id]['sum_distance']/frequent_boroughs_dict[borough_id]['number_towing']
-        frequent_boroughs.append({
+        average_distance = (boroughs_stats_dict[borough_id]['sum_distance'] / 
+                            (boroughs_stats_dict[borough_id]['number_towing'] -
+                            boroughs_stats_dict[borough_id]['distance_errors']))
+        boroughs_stats.append({
             'borough': borough_id,
-            'number_towing': frequent_boroughs_dict[borough_id]['number_towing'],
+            'number_towing': boroughs_stats_dict[borough_id]['number_towing'],
             'average_distance': average_distance,
             'distance_unit': 'km'
         })
     else:
-        for borough, stats in frequent_boroughs_dict.items():
-            frequent_boroughs.append({
+        for borough, stats in boroughs_stats_dict.items():
+            average_distance = (stats['sum_distance'] /
+                                (stats['number_towing'] - stats['distance_errors']))
+            boroughs_stats.append({
                 'borough': borough,
                 'number_towing': stats['number_towing'],
-                'average_distance': stats['sum_distance']/stats['number_towing'],
+                'average_distance': average_distance,
                 'distance_unit': 'km'
             })
     
-    return jsonify(frequent_boroughs)
+    return jsonify(boroughs_stats)
 
 @app.route('/weekdays-stats')
 def weekdays_stats():
+    '''Endpoint that returns the number of towings per weekday'''
+
     weekdays_stats_dict = {}
     with open(filename, 'r') as f:
         reader = csv.reader(f)
@@ -112,7 +143,6 @@ def weekdays_stats():
             })
         
         return jsonify(weekdays_stats)
-
 
 if __name__ == '__main__':
 	app.run(debug=True, host='0.0.0.0')
