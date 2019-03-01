@@ -1,5 +1,11 @@
 # flask-rest-api
 
+Project that fetches towing data for the city of Montreal, processes it, and exposes 3 endpoints to access the data. These endpoints are:
+
+* /data
+* /boroughs-stats
+* /weekdays-stats
+
 ## How to run
 * Clone project:
 
